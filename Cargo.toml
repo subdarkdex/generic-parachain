@@ -3,7 +3,7 @@ members = [
 	"runtime/",
 	"pallets/parachain-info",
 	"pallets/token-dealer",
-	"pallets/template",
+	"pallets/generic-asset",
 	"node/",
 ]
 
