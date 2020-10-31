@@ -140,8 +140,6 @@ impl_outer_event! {
     }
 }
 
-pub type ParachainInfo = parachain_info::Module<Test>;
-pub type MessageBroker = cumulus_message_broker::Module<Test>;
 pub type GenericAsset = generic_asset::Module<Test>;
 pub type TokenDealer = Module<Test>;
 pub type System = frame_system::Module<Test>;
@@ -149,7 +147,6 @@ pub type System = frame_system::Module<Test>;
 pub struct ExtBuilder {
     spending_to_relay_rate: u128,
     generic_to_spending_rate: u128,
-    assets: Vec<u32>,
     asset_id: u32,
     next_asset_id: u32,
     accounts: Vec<AccountId>,
@@ -162,7 +159,6 @@ impl Default for ExtBuilder {
         Self {
             spending_to_relay_rate: 1000,
             generic_to_spending_rate: 1,
-            assets: vec![0],
             asset_id: 0,
             next_asset_id: 1000,
             accounts: vec![],
@@ -184,11 +180,6 @@ impl ExtBuilder {
     pub fn assets_relay_rates(mut self, rate: (u128, u128)) -> Self {
         self.spending_to_relay_rate = rate.0;
         self.generic_to_spending_rate = rate.1;
-        self
-    }
-
-    pub fn next_asset_id(mut self, asset_id: u32) -> Self {
-        self.next_asset_id = asset_id;
         self
     }
 
@@ -218,11 +209,4 @@ impl ExtBuilder {
         ext.execute_with(|| System::set_block_number(1));
         ext
     }
-}
-
-pub fn new_test_ext() -> sp_io::TestExternalities {
-    frame_system::GenesisConfig::default()
-        .build_storage::<Test>()
-        .unwrap()
-        .into()
 }

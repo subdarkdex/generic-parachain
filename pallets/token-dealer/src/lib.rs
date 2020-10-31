@@ -70,7 +70,8 @@ impl<T: Encode + Decode + Default> AccountIdConversion<T> for RelayId {
 #[derive(Encode, Decode)]
 pub enum XCMPMessage<XAccountId, XBalance, XAssetIdOf> {
     /// Transfer tokens to the given account from the Parachain account.
-    TransferToken(XAccountId, XBalance, XAssetIdOf),
+    TransferToken(XAccountId, XBalance),
+    TransferAsset(XAccountId, XBalance, XAssetIdOf),
 }
 
 /// Configuration trait of this pallet.
@@ -104,10 +105,17 @@ decl_event! {
         Balance = BalanceOf<T>
     {
         /// Transferred tokens to the account on the relay chain.
+        /// (Relay_chain_account_on_para, reciever_account_on_dest_chain, transfer_amount)
         TransferredTokensToRelayChain(AccountId, AccountId, Balance),
+        /// Transferred tokens to the account on the relay chain.
+        /// (ParaId, parachain_account_on_para, reciever_account_on_dest_chain, transfer_amount,
+        /// AssetId)
+        TransferredTokensToParachain(ParaId, AccountId, AccountId, Balance, AssetId),
         /// Transferred tokens to the account on request from the relay chain.
+        /// (reciever_account_on_para, amount, result)
         TransferredTokensFromRelayChain(AccountId, Balance, DispatchResult),
         /// Transferred tokens to the account from the given parachain account.
+        /// (ParaId, reciever_account_on_para, amount, assetId, result )
         TransferredTokensViaXCMP(ParaId, AccountId, Balance, AssetId, DispatchResult),
     }
 }
@@ -130,7 +138,7 @@ decl_module! {
             // Not tested because need network integration test
             let mut relay_amount = amount / Self::spending_to_relay_rate();
             if asset_id != <generic_asset::Module<T>>::spending_asset_id() {
-                relay_amount = relay_amount / Self::generic_to_spending_rate();
+                relay_amount /= Self::generic_to_spending_rate();
             }
 
             let msg = <T::UpwardMessage>::transfer(dest.clone(), amount.clone());
@@ -142,7 +150,7 @@ decl_module! {
 
         /// Transfer `amount` of tokens to another parachain.
         #[weight = 10]
-        fn transfer_tokens_to_parachain_chain(
+        fn transfer_assets_to_parachain_chain(
             origin,
             para_id: u32,
             dest: T::AccountId,
@@ -161,8 +169,10 @@ decl_module! {
 
             T::XCMPMessageSender::send_xcmp_message(
                 para_id.into(),
-                &XCMPMessage::TransferToken(dest, amount, asset_id),
+                &XCMPMessage::TransferAsset(dest.clone(), amount, asset_id),
             ).expect("Should not fail; qed");
+
+            Self::deposit_event(Event::<T>::TransferredTokensToParachain(para_id, para_account, dest, amount, asset_id));
         }
 
         fn deposit_event() = default;
@@ -181,8 +191,7 @@ impl<T: Trait> DownwardMessageHandler for Module<T> {
             DownwardMessage::TransferInto(dest, relay_amount, remark) => {
                 let dest: T::AccountId = convert_hack(&dest);
                 let relay_amount: BalanceOf<T> = convert_hack(relay_amount);
-                let relay_id = RelayId::default();
-                let relay_account = relay_id.into_account();
+                let relay_account = RelayId::default().into_account();
                 // remark has a concerte type [u8; 32]
                 let asset_id: AssetIdOf<T> = convert_hack(remark);
 
@@ -216,7 +225,7 @@ impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, AssetI
         msg: &XCMPMessage<T::AccountId, BalanceOf<T>, AssetIdOf<T>>,
     ) {
         match msg {
-            XCMPMessage::TransferToken(dest, amount, asset_id) => {
+            XCMPMessage::TransferAsset(dest, amount, asset_id) => {
                 let para_account = src.clone().into_account();
 
                 // asset_id cast into generic asset transfer
@@ -232,6 +241,25 @@ impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, AssetI
                     dest.clone(),
                     amount.clone(),
                     asset_id.clone(),
+                    res,
+                ));
+            }
+            XCMPMessage::TransferToken(dest, amount) => {
+                let para_account = src.clone().into_account();
+
+                // asset_id cast into generic asset transfer
+                let res = <generic_asset::Module<T>>::make_transfer(
+                    &<generic_asset::Module<T>>::spending_asset_id(),
+                    &para_account,
+                    dest,
+                    amount.clone(),
+                );
+
+                Self::deposit_event(Event::<T>::TransferredTokensViaXCMP(
+                    src,
+                    dest.clone(),
+                    amount.clone(),
+                    <generic_asset::Module<T>>::spending_asset_id(),
                     res,
                 ));
             }

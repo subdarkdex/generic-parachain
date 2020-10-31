@@ -21,20 +21,24 @@
 #![cfg(test)]
 
 use super::*;
-use crate::mock::{
-    new_test_ext, ExtBuilder, GenericAsset, Origin, System, Test, TestEvent, TokenDealer,
-};
-use frame_support::{assert_noop, assert_ok};
+use crate::mock::{ExtBuilder, GenericAsset, Origin, System, TestEvent, TokenDealer};
+use frame_support::assert_ok;
 
 #[test]
-fn transfer_to_relay_chain_deducts_parachain_account() {
+fn transfer_to_relay_chain_settles_accounts_on_parachain_with_event() {
     // 1 DOT = 1000 spending asset, 1 spending asset = 1 generic asset
     let assets_relay_rates = (1000, 1);
     let initial_para_amount = 10000;
-    let transfer_para_amount = 1000;
+    let transfer_amount = 1000;
     let from = [0u8; 32];
+    let to = [1u8; 32];
     let relay_account: [u8; 32] = RelayId::default().into_account();
-    let expected_balance = initial_para_amount - transfer_para_amount;
+    let expected_balance = initial_para_amount - transfer_amount;
+    let expected_event = TestEvent::token_dealer(RawEvent::TransferredTokensToRelayChain(
+        relay_account.into(),
+        to.into(),
+        transfer_amount,
+    ));
 
     ExtBuilder::default()
         // assetid, account, balance
@@ -45,8 +49,8 @@ fn transfer_to_relay_chain_deducts_parachain_account() {
         .execute_with(|| {
             assert_ok!(TokenDealer::transfer_tokens_to_relay_chain(
                 Origin::signed(from.into()),
-                from.into(),
-                transfer_para_amount,
+                to.into(),
+                transfer_amount,
                 0
             ));
             assert_eq!(
@@ -55,13 +59,16 @@ fn transfer_to_relay_chain_deducts_parachain_account() {
             );
             assert_eq!(
                 GenericAsset::free_balance(&0, &relay_account.into()),
-                transfer_para_amount
+                transfer_amount
             );
+            assert!(System::events()
+                .iter()
+                .any(|record| record.event == expected_event));
         });
 }
 
 #[test]
-fn handles_downward_messages() {
+fn downward_message_settles_accounts_on_parachain_with_event() {
     // 1 DOT = 1000 spending asset, 1 spending asset = 1 generic asset
     let assets_relay_rates = (1000, 1);
     let initial_relay_account_ammount = 10000;
@@ -73,7 +80,11 @@ fn handles_downward_messages() {
     let relay_account: [u8; 32] = RelayId::default().into_account();
     let downward_message =
         DownwardMessage::TransferInto(dest.into(), transfer_relay_amount, remark);
-
+    let expected_event = TestEvent::token_dealer(RawEvent::TransferredTokensFromRelayChain(
+        dest.into(),
+        transfer_relay_amount * assets_relay_rates.0,
+        Ok(()),
+    ));
     ExtBuilder::default()
         // assetid, account, balance
         .free_balance((0, relay_account.into(), initial_relay_account_ammount))
@@ -86,10 +97,134 @@ fn handles_downward_messages() {
                 GenericAsset::free_balance(&0, &relay_account.into()),
                 initial_relay_account_ammount - expected_balance
             );
-
             assert_eq!(
                 GenericAsset::free_balance(&0, &dest.into()),
                 expected_balance
             );
+            assert!(System::events()
+                .iter()
+                .any(|record| record.event == expected_event));
+        });
+}
+
+#[test]
+fn transfer_tokens_to_para_settles_accounts_on_parachain_with_event() {
+    let from = [0u8; 32];
+    let initial_account_ammount = 10000;
+    let transfer_amount = 9000;
+    let asset_id = 0;
+
+    let para_id: ParaId = 200.into();
+
+    let dest = [0u8; 32];
+
+    let expected_event = TestEvent::token_dealer(RawEvent::TransferredTokensToParachain(
+        para_id,
+        para_id.into_account(),
+        dest.into(),
+        transfer_amount,
+        asset_id,
+    ));
+    ExtBuilder::default()
+        // assetid, account, balance
+        .free_balance((0, from.into(), initial_account_ammount))
+        // spending to relay, generic to spending
+        .build()
+        .execute_with(|| {
+            assert_ok!(TokenDealer::transfer_assets_to_parachain_chain(
+                Origin::signed(from.into()),
+                para_id.into(),
+                dest.into(),
+                transfer_amount,
+                asset_id,
+            ));
+            assert_eq!(
+                GenericAsset::free_balance(&0, &para_id.into_account()),
+                transfer_amount
+            );
+            assert_eq!(
+                GenericAsset::free_balance(&0, &from.into()),
+                initial_account_ammount - transfer_amount
+            );
+            assert!(System::events()
+                .iter()
+                .any(|record| record.event == expected_event));
+        });
+}
+
+#[test]
+fn handle_xcmp_transfer_token_message_settles_accounts_on_parachain_with_event() {
+    let dest = [0u8; 32];
+    let initial_account_ammount = 10000;
+    let transfer_amount = 9000;
+    let asset_id = 0;
+    let msg = XCMPMessage::TransferToken(dest.into(), transfer_amount);
+    let para_id: ParaId = 200.into();
+    let expected_event = TestEvent::token_dealer(RawEvent::TransferredTokensViaXCMP(
+        para_id,
+        dest.into(),
+        transfer_amount,
+        asset_id,
+        Ok(()),
+    ));
+
+    ExtBuilder::default()
+        // assetid, account, balance
+        .free_balance((0, para_id.into_account(), initial_account_ammount))
+        // spending to relay, generic to spending
+        .build()
+        .execute_with(|| {
+            TokenDealer::handle_xcmp_message(para_id, &msg);
+            assert_eq!(
+                GenericAsset::free_balance(
+                    &GenericAsset::spending_asset_id(),
+                    &para_id.into_account()
+                ),
+                initial_account_ammount - transfer_amount
+            );
+            assert_eq!(
+                GenericAsset::free_balance(&GenericAsset::spending_asset_id(), &dest.into()),
+                transfer_amount
+            );
+            assert!(System::events()
+                .iter()
+                .any(|record| record.event == expected_event));
+        });
+}
+
+#[test]
+fn handle_xcmp_transfer_assets_message_settles_accounts_on_parachain_with_event() {
+    let dest = [0u8; 32];
+    let initial_account_ammount = 10000;
+    let transfer_amount = 9000;
+    let asset_id = 9;
+    let msg = XCMPMessage::TransferAsset(dest.into(), transfer_amount, asset_id);
+    let para_id: ParaId = 200.into();
+    let expected_event = TestEvent::token_dealer(RawEvent::TransferredTokensViaXCMP(
+        para_id,
+        dest.into(),
+        transfer_amount,
+        asset_id,
+        Ok(()),
+    ));
+
+    ExtBuilder::default()
+        // assetid, account, balance
+        .free_balance((asset_id, para_id.into_account(), initial_account_ammount))
+        // spending to relay, generic to spending
+        .build()
+        .execute_with(|| {
+            TokenDealer::handle_xcmp_message(para_id, &msg);
+            assert_eq!(
+                GenericAsset::free_balance(&asset_id, &para_id.into_account()),
+                initial_account_ammount - transfer_amount
+            );
+            assert_eq!(
+                GenericAsset::free_balance(&asset_id, &dest.into()),
+                transfer_amount
+            );
+            assert!(System::events()
+                .iter()
+                .any(|record| record.event == expected_event));
         });
 }
