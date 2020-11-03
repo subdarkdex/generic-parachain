@@ -35,6 +35,7 @@ use sp_runtime::{
 impl_outer_origin! {
     pub enum Origin for Test where system = frame_system {}
 }
+use pallet_balances;
 use upward_messages;
 
 type Balance = u128;
@@ -72,14 +73,14 @@ impl frame_system::Trait for Test {
     type BlockHashCount = BlockHashCount;
     type Version = ();
     type ModuleToIndex = ();
-    type AccountData = ();
+    type AccountData = pallet_balances::AccountData<Balance>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
 }
 
-impl generic_asset::Trait for Test {
-    type Event = TestEvent;
+impl assets::Trait for Test {
+    type Event = ();
     type Balance = Balance;
     type AssetId = AssetId;
 }
@@ -119,11 +120,21 @@ impl XCMPMessageSender<XCMPMessage<AccountId, Balance, AssetId>> for MessageBrok
 
 impl parachain_info::Trait for Test {}
 
+impl pallet_balances::Trait for Test {
+    type Balance = Balance;
+    type DustRemoval = ();
+    type Event = TestEvent;
+    type ExistentialDeposit = Self::ExistentialDeposit;
+    type AccountStore = system::Module<Test>;
+    type WeightInfo = ();
+}
+
 impl Trait for Test {
     type UpwardMessageSender = MessageBrokerMock;
     type UpwardMessage = TestUpwardMessage;
     type XCMPMessageSender = MessageBrokerMock;
     type Event = TestEvent;
+    type Currency = Balances;
 }
 
 mod token_dealer {
@@ -135,78 +146,58 @@ impl_outer_event! {
     pub enum TestEvent for Test {
         system<T>,
         token_dealer<T>,
-        generic_asset<T>,
         cumulus_message_broker<T>,
     }
 }
 
-pub type GenericAsset = generic_asset::Module<Test>;
+pub type Assets = assets::Module<Test>;
+pub type Balances = pallet_balances::Module<Test>;
 pub type TokenDealer = Module<Test>;
 pub type System = frame_system::Module<Test>;
 
 pub struct ExtBuilder {
-    spending_to_relay_rate: u128,
-    generic_to_spending_rate: u128,
-    asset_id: u32,
-    next_asset_id: u32,
-    accounts: Vec<AccountId>,
-    initial_balance: u128,
+    //spending_to_relay_rate: u128,
+    //generic_to_spending_rate: u128,
+    existential_deposit: u128,
+    account_balances: Vec<(AccountId, Balance)>,
 }
 
 // Returns default values for genesis config
 impl Default for ExtBuilder {
     fn default() -> Self {
         Self {
-            spending_to_relay_rate: 1000,
-            generic_to_spending_rate: 1,
-            asset_id: 0,
-            next_asset_id: 1000,
-            accounts: vec![],
-            initial_balance: 0,
+            // spending_to_relay_rate: 1000,
+            // generic_to_spending_rate: 1,
+            existential_deposit: 100,
+            account_balances: vec![],
         }
     }
 }
 
 impl ExtBuilder {
-    // Sets free balance to genesis config
-    pub fn free_balance(mut self, free_balance: (u32, AccountId, u128)) -> Self {
-        self.asset_id = free_balance.0;
-        self.accounts = vec![free_balance.1];
-        self.initial_balance = free_balance.2;
-        self
-    }
-
     // Sets the exchange rates between assets to relay chain
-    pub fn assets_relay_rates(mut self, rate: (u128, u128)) -> Self {
-        self.spending_to_relay_rate = rate.0;
-        self.generic_to_spending_rate = rate.1;
+    //  pub fn assets_relay_rates(mut self, rate: (u128, u128)) -> Self {
+    //      self.spending_to_relay_rate = rate.0;
+    //      self.generic_to_spending_rate = rate.1;
+    //      self
+    //  }
+    pub fn existential_deposit(mut self, existential_deposit: u128) -> Self {
+        self.existential_deposit = existential_deposit;
         self
     }
-
-    // builds genesis config -- add to build GenericAsset too
+    pub fn free_balance(mut self, ab: Vec<(AccountId, Balance)>) -> Self {
+        self.account_balances = ab;
+        self
+    }
     pub fn build(self) -> sp_io::TestExternalities {
+        self.set_associated_consts();
         let mut t = frame_system::GenesisConfig::default()
             .build_storage::<Test>()
             .unwrap();
-
-        let generic_asset_genesis = generic_asset::GenesisConfig::<Test> {
-            assets: vec![self.asset_id],
-            endowed_accounts: self.accounts,
-            initial_balance: self.initial_balance,
-            next_asset_id: self.next_asset_id,
-            staking_asset_id: 0,
-            spending_asset_id: 0,
-        };
-        let genesis = GenesisConfig::<Test> {
-            spending_to_relay_rate: self.spending_to_relay_rate,
-            generic_to_spending_rate: self.generic_to_spending_rate,
-        };
-
-        generic_asset_genesis.assimilate_storage(&mut t).unwrap();
-        genesis.assimilate_storage(&mut t).unwrap();
-
-        let mut ext = sp_io::TestExternalities::new(t);
-        ext.execute_with(|| System::set_block_number(1));
-        ext
+        pallet_balances::GenesisConfig::<Test> {
+            balances: self.account_balances,
+        }
+        .assimilate_storage(&mut t)
+        .unwrap();
     }
 }

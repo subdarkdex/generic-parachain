@@ -2,8 +2,8 @@
 
 use cumulus_primitives::ParaId;
 use parachain_runtime::{
-    AccountId, GenericAssetConfig, GenesisConfig, ParachainInfoConfig, Signature, SudoConfig,
-    SystemConfig, TokenDealerConfig, WASM_BINARY,
+    AccountId, BalancesConfig, GenesisConfig, ParachainInfoConfig, Signature, SudoConfig,
+    SystemConfig, WASM_BINARY,
 };
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
@@ -96,19 +96,18 @@ fn testnet_genesis(
             code: wasm_binary.to_vec(),
             changes_trie_config: Default::default(),
         }),
-        pallet_generic_asset: Some(GenericAssetConfig {
-            assets: vec![0],
-            initial_balance: 10u128.pow(12),
-            endowed_accounts,
-            next_asset_id: 1,
-            staking_asset_id: 0,
-            spending_asset_id: 0,
+        pallet_balances: Some(BalancesConfig {
+            balances: endowed_accounts
+                .iter()
+                .cloned()
+                .map(|k| (k, 1 << 60))
+                .collect(),
         }),
         pallet_sudo: Some(SudoConfig { key: root_key }),
         parachain_info: Some(ParachainInfoConfig { parachain_id: id }),
-        generic_assets_token_dealer: Some(TokenDealerConfig {
-            spending_to_relay_rate: 1000,
-            generic_to_spending_rate: 1,
-        }),
+        // generic_assets_token_dealer: Some(TokenDealerConfig {
+        //     spending_to_relay_rate: 1000,
+        //     generic_to_spending_rate: 1,
+        // }),
     }
 }

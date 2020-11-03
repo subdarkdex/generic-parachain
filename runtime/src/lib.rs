@@ -27,7 +27,8 @@ pub use frame_support::{
     weights::{constants::WEIGHT_PER_SECOND, IdentityFee, Weight},
     StorageValue,
 };
-pub use pallet_generic_asset::Call as GenericAssetCall;
+pub use pallet_assets::Call as AssetsCall;
+pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -160,7 +161,7 @@ impl frame_system::Trait for Runtime {
     type Version = Version;
     /// Converts a module to an index of this module in the runtime.
     type ModuleToIndex = ModuleToIndex;
-    type AccountData = ();
+    type AccountData = pallet_balances::AccountData<Balance>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type DbWeight = ();
@@ -190,16 +191,22 @@ parameter_types! {
     pub const TransactionByteFee: u128 = 1;
 }
 
-impl pallet_generic_asset::Trait for Runtime {
-    /// The type for recording an account's balance.
+impl pallet_assets:Trait for Runtime {
     type Balance = Balance;
-    /// The ubiquitous event type.
     type Event = Event;
     type AssetId = AssetId;
 }
+impl pallet_balances::Trait for Runtime {
+    type Balance = Balance;
+    type Event = Event;
+    type DustRemoval = ();
+    type ExistentialDeposit = ExistentialDeposit;
+    type AccountStore = System;
+    type WeightInfo = ();
+}
 
 impl pallet_transaction_payment::Trait for Runtime {
-    type Currency = pallet_generic_asset::SpendingAssetCurrency<Runtime>;
+    type Currency = Balances;
     type OnTransactionPayment = ();
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
@@ -232,6 +239,7 @@ impl generic_assets_token_dealer::Trait for Runtime {
     type UpwardMessageSender = MessageBroker;
     type UpwardMessage = generic_assets_token_dealer::upward_messages::RococoUpwardMessage;
     type XCMPMessageSender = MessageBroker;
+    type Currency = Balances;
 }
 
 construct_runtime! {
@@ -244,12 +252,13 @@ construct_runtime! {
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
         Sudo: pallet_sudo::{Module, Call, Storage, Config<T>, Event<T>},
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
+        Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
         ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
         MessageBroker: cumulus_message_broker::{Module, Call, Inherent, Event<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
         ParachainInfo: parachain_info::{Module, Storage, Config},
         TokenDealer: generic_assets_token_dealer::{Module, Call, Event<T>, Config<T>},
-        GenericAsset: pallet_generic_asset::{Module, Call, Storage, Config<T>, Event<T>},
+        Assets: pallet_assets::{Module, Call, Storage, Event<T>},
     }
 }
 
