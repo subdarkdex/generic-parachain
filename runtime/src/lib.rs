@@ -191,7 +191,7 @@ parameter_types! {
     pub const TransactionByteFee: u128 = 1;
 }
 
-impl pallet_assets:Trait for Runtime {
+impl pallet_assets::Trait for Runtime {
     type Balance = Balance;
     type Event = Event;
     type AssetId = AssetId;
@@ -257,7 +257,7 @@ construct_runtime! {
         MessageBroker: cumulus_message_broker::{Module, Call, Inherent, Event<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
         ParachainInfo: parachain_info::{Module, Storage, Config},
-        TokenDealer: generic_assets_token_dealer::{Module, Call, Event<T>, Config<T>},
+        TokenDealer: generic_assets_token_dealer::{Module, Call, Event<T>},
         Assets: pallet_assets::{Module, Call, Storage, Event<T>},
     }
 }

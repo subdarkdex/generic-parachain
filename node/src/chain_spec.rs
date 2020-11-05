@@ -105,9 +105,5 @@ fn testnet_genesis(
         }),
         pallet_sudo: Some(SudoConfig { key: root_key }),
         parachain_info: Some(ParachainInfoConfig { parachain_id: id }),
-        // generic_assets_token_dealer: Some(TokenDealerConfig {
-        //     spending_to_relay_rate: 1000,
-        //     generic_to_spending_rate: 1,
-        // }),
     }
 }

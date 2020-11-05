@@ -39,12 +39,13 @@ use pallet_balances;
 use upward_messages;
 
 type Balance = u128;
-type AccountId = AccountId32;
+pub type AccountId = AccountId32;
 type AssetId = u32;
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct Test;
 parameter_types! {
+    pub const ExistentialDeposit: Balance = 100;
     pub const BlockHashCount: u64 = 250;
     pub const MaximumBlockWeight: Weight = 1024;
     pub const MaximumBlockLength: u32 = 2 * 1024;
@@ -80,7 +81,7 @@ impl frame_system::Trait for Test {
 }
 
 impl assets::Trait for Test {
-    type Event = ();
+    type Event = TestEvent;
     type Balance = Balance;
     type AssetId = AssetId;
 }
@@ -124,7 +125,7 @@ impl pallet_balances::Trait for Test {
     type Balance = Balance;
     type DustRemoval = ();
     type Event = TestEvent;
-    type ExistentialDeposit = Self::ExistentialDeposit;
+    type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = system::Module<Test>;
     type WeightInfo = ();
 }
@@ -147,6 +148,8 @@ impl_outer_event! {
         system<T>,
         token_dealer<T>,
         cumulus_message_broker<T>,
+        pallet_balances<T>,
+        assets<T>,
     }
 }
 
@@ -158,7 +161,6 @@ pub type System = frame_system::Module<Test>;
 pub struct ExtBuilder {
     //spending_to_relay_rate: u128,
     //generic_to_spending_rate: u128,
-    existential_deposit: u128,
     account_balances: Vec<(AccountId, Balance)>,
 }
 
@@ -168,7 +170,6 @@ impl Default for ExtBuilder {
         Self {
             // spending_to_relay_rate: 1000,
             // generic_to_spending_rate: 1,
-            existential_deposit: 100,
             account_balances: vec![],
         }
     }
@@ -181,16 +182,11 @@ impl ExtBuilder {
     //      self.generic_to_spending_rate = rate.1;
     //      self
     //  }
-    pub fn existential_deposit(mut self, existential_deposit: u128) -> Self {
-        self.existential_deposit = existential_deposit;
-        self
-    }
     pub fn free_balance(mut self, ab: Vec<(AccountId, Balance)>) -> Self {
         self.account_balances = ab;
         self
     }
     pub fn build(self) -> sp_io::TestExternalities {
-        self.set_associated_consts();
         let mut t = frame_system::GenesisConfig::default()
             .build_storage::<Test>()
             .unwrap();
@@ -199,5 +195,9 @@ impl ExtBuilder {
         }
         .assimilate_storage(&mut t)
         .unwrap();
+
+        let mut ext = sp_io::TestExternalities::new(t);
+        ext.execute_with(|| System::set_block_number(1));
+        ext
     }
 }

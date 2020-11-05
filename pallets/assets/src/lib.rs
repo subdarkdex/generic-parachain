@@ -135,8 +135,8 @@
 
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, Parameter};
 use frame_system::ensure_signed;
-use sp_runtime::traits::One;
-use sp_runtime::traits::{AtLeast32Bit, AtLeast32BitUnsigned, Member, StaticLookup, Zero};
+use sp_runtime::traits::{AtLeast32Bit, AtLeast32BitUnsigned, Member, One, StaticLookup, Zero};
+use sp_runtime::DispatchResult;
 
 /// The module configuration trait.
 pub trait Trait: frame_system::Trait {
@@ -166,7 +166,7 @@ decl_module! {
         /// - 1 event.
         /// # </weight>
         #[weight = 0]
-        fn issue(origin, #[compact] total: T::Balance) {
+        pub fn issue(origin, #[compact] total: T::Balance) {
             let origin = ensure_signed(origin)?;
 
             let id = Self::next_asset_id();
@@ -187,7 +187,7 @@ decl_module! {
         /// - 1 event.
         /// # </weight>
         #[weight = 0]
-        fn transfer(origin,
+        pub fn transfer(origin,
             #[compact] id: T::AssetId,
             target: <T::Lookup as StaticLookup>::Source,
             #[compact] amount: T::Balance
@@ -275,6 +275,22 @@ impl<T: Trait> Module<T> {
     /// Get the total supply of an asset `id`.
     pub fn total_supply(id: T::AssetId) -> T::Balance {
         <TotalSupply<T>>::get(id)
+    }
+
+    pub fn make_transfer(
+        from: &T::AccountId,
+        id: T::AssetId,
+        target: &T::AccountId,
+        amount: T::Balance,
+    ) -> DispatchResult {
+        ensure!(!amount.is_zero(), Error::<T>::AmountZero);
+        let from_account = (id, from.clone());
+        let from_balance = <Balances<T>>::get(&from_account);
+        ensure!(from_balance >= amount, Error::<T>::BalanceLow);
+
+        <Balances<T>>::insert(from_account, from_balance - amount);
+        <Balances<T>>::mutate((id, target), |balance| *balance += amount);
+        Ok(())
     }
 }
 

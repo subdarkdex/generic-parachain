@@ -11,6 +11,7 @@ frame-support = { git = "https://github.com/paritytech/substrate", default-featu
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
 pallet-assets = { path = "../assets", default-features = false}
 sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
 
 # Cumulus dependencies
 cumulus-primitives = { git = "https://github.com/paritytech/cumulus",  default-features = false, rev = '4e7f138c828bcf118df1c988a400d4dac8e904d9' }
@@ -25,7 +26,6 @@ polkadot-core-primitives = { git = "https://github.com/paritytech/polkadot", bra
 
 [dev-dependencies]
 sp-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
 sp-io = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
 cumulus-message-broker = { git = "https://github.com/paritytech/cumulus",  default-features = false, rev = '4e7f138c828bcf118df1c988a400d4dac8e904d9' }
