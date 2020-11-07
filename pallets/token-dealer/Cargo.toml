@@ -1,29 +1,67 @@
 [package]
 authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"
-name = "cumulus-token-dealer"
+name = "generic-assets-token-dealer"
 version = "0.1.0"
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "1.3.0", default-features = false, features = ["derive"] }
-
+serde = { version = "1.0.101", optional = true }
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
+pallet-assets = { path = "../assets", default-features = false}
+sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
 
 # Cumulus dependencies
-cumulus-upward-message = { git = "https://github.com/paritytech/cumulus",  default-features = false, rev = '4e7f138c828bcf118df1c988a400d4dac8e904d9' }
 cumulus-primitives = { git = "https://github.com/paritytech/cumulus",  default-features = false, rev = '4e7f138c828bcf118df1c988a400d4dac8e904d9' }
 
 # Polkadot dependencies
+rococo-runtime = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", default-features = false }
+polkadot-runtime = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", default-features = false }
+kusama-runtime = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", default-features = false }
+westend-runtime = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", default-features = false }
 polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", default-features = false }
+polkadot-core-primitives = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", default-features = false }
+
+[dev-dependencies]
+sp-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
+sp-io = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
+sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
+cumulus-message-broker = { git = "https://github.com/paritytech/cumulus",  default-features = false, rev = '4e7f138c828bcf118df1c988a400d4dac8e904d9' }
+pallet-balances = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
+parachain-info = { path = "../parachain-info", default-features = false}
+
+[build-dependencies]
+wasm-builder-runner = { package = "substrate-wasm-builder-runner", version = "1.0.6" }
 
 [features]
 default = ["std"]
 std = [
+    "serde/std",
     "codec/std",
-    "cumulus-upward-message/std",
+    "sp-api/std",
+    "sp-runtime/std",
+    "sp-io/std",
+    "sp-core/std",
     "cumulus-primitives/std",
     "frame-support/std",
+    "rococo-runtime/std",
     "frame-system/std",
+    "sp-std/std",
+    "rococo-runtime/std",
+    "polkadot-core-primitives/std",
     "polkadot-parachain/std",
+    "polkadot-runtime/std",
+    "kusama-runtime/std",
+    "westend-runtime/std",
+    "pallet-assets/std"
 ]
+
+runtime-wasm = [
+	"rococo-runtime/disable-runtime-api",
+    "kusama-runtime/disable-runtime-api",
+ 	"polkadot-runtime/disable-runtime-api",
+ 	"westend-runtime/disable-runtime-api",
+]
+
