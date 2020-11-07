@@ -187,21 +187,15 @@ decl_module! {
         /// - 1 event.
         /// # </weight>
         #[weight = 0]
-        pub fn transfer(origin,
+        fn transfer(origin,
             #[compact] id: T::AssetId,
             target: <T::Lookup as StaticLookup>::Source,
             #[compact] amount: T::Balance
         ) {
             let origin = ensure_signed(origin)?;
-            let origin_account = (id, origin.clone());
-            let origin_balance = <Balances<T>>::get(&origin_account);
             let target = T::Lookup::lookup(target)?;
-            ensure!(!amount.is_zero(), Error::<T>::AmountZero);
-            ensure!(origin_balance >= amount, Error::<T>::BalanceLow);
-
+            Self::make_transfer(&origin, id, &target, amount)?;
             Self::deposit_event(RawEvent::Transferred(id, origin, target.clone(), amount));
-            <Balances<T>>::insert(origin_account, origin_balance - amount);
-            <Balances<T>>::mutate((id, target), |balance| *balance += amount);
         }
 
         /// Destroy any assets of `id` owned by `origin`.

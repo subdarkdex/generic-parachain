@@ -15,7 +15,6 @@ use frame_support::{
 use frame_system::ensure_signed;
 use pallet_assets as assets;
 use polkadot_parachain::primitives::AccountIdConversion;
-use sp_runtime::traits::StaticLookup;
 
 pub mod upward_messages;
 pub use crate::upward_messages::BalancesMessage;
@@ -130,9 +129,8 @@ decl_module! {
             let relay_account: T::AccountId = RelayId::default().into_account();
 
             if let Some(id) = asset_id {
-                let relay_account = T::Lookup::unlookup(relay_account.clone());
                 let amount = convert_hack(&amount);
-                <assets::Module<T>>::transfer(origin, id, relay_account, amount)?;
+                <assets::Module<T>>::make_transfer(&who, id, &relay_account, amount)?;
             } else {
                 T::Currency::transfer(&who, &relay_account, amount, ExistenceRequirement::KeepAlive)?;
             }
@@ -161,9 +159,8 @@ decl_module! {
             let para_account: T::AccountId = para_id.into_account();
 
             if let Some(id) = asset_id {
-                let para_account = T::Lookup::unlookup(para_account.clone());
-                <assets::Module<T>>::transfer(
-                    origin, id, para_account, convert_hack(&amount)
+                <assets::Module<T>>::make_transfer(
+                    &who, id, &para_account, convert_hack(&amount)
                 )?;
             } else {
                 T::Currency::transfer(&who, &para_account, amount, ExistenceRequirement::KeepAlive)?;
