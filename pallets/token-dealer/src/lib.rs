@@ -26,7 +26,7 @@ pub type AssetIdOf<T> = <T as assets::Trait>::AssetId;
 pub type BalanceOf<T> =
     <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
-/// Unique identifier of a parachain.
+/// Unique identifier for the Relay Chain account
 #[derive(Clone, Copy, Decode, Default, Encode, Eq, Hash, PartialEq)]
 pub struct RelayId();
 
@@ -113,7 +113,7 @@ decl_event! {
         /// (reciever_account_local, amount, Option<AssetId>, result)
         TransferredTokensFromRelayChain(AccountId, Balance, Option<AssetId>, DispatchResult),
         /// Transferred tokens to the account on request from parachain.
-        /// (ParaId, reciever_account_on_para, amount, assetId, result )
+        /// (ParaId, reciever_account_on_para, amount, assetId, result)
         TransferredTokensViaXCMP(ParaId, AccountId, Balance, Option<AssetId>, DispatchResult),
     }
 }
@@ -121,7 +121,9 @@ decl_event! {
 decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         /// Transfer `amount` of tokens (local asset_id) from Parachain account to the relay chain
-        /// (relay chain currency) at the given `dest` account
+        /// at the given `dest` account.
+        /// Must ensure parachain account on relay chain  has enough balance
+
         #[weight = 10]
         pub fn transfer_tokens_to_relay_chain(origin, dest: T::AccountId, amount: BalanceOf<T>, asset_id: Option<AssetIdOf<T>>) {
             let who = ensure_signed(origin.clone())?;
@@ -132,9 +134,12 @@ decl_module! {
                 let amount = convert_hack(&amount);
                 <assets::Module<T>>::make_transfer(&who, id, &relay_account, amount)?;
             } else {
+                // Transfer parachain asset to the relay_account (which is on this parachain)
                 T::Currency::transfer(&who, &relay_account, amount, ExistenceRequirement::KeepAlive)?;
             }
 
+            // Send upward message to Relay Chain to transfer `amount` from this parachain's
+            // account on the relay chain to `dest`.
             let msg = <T::UpwardMessage>::transfer(dest.clone(), amount.clone());
             <T as Trait>::UpwardMessageSender::send_upward_message(&msg, UpwardMessageOrigin::Signed)
                 .expect("Should not fail; qed");
@@ -142,7 +147,9 @@ decl_module! {
             Self::deposit_event(Event::<T>::TransferredTokensToRelayChain(who, asset_id, dest, amount));
         }
 
-        /// Transfer `amount` of tokens to another parachain.
+        /// Transfer `amount` of tokens to another parachain. If the other parachain has assets,
+        /// use `dest_asset_id` to inform other parachain which asset_id to complete the transfer
+        /// Must ensure this parachain's account on the dest parachain has enough balance.
         #[weight = 10]
         pub fn transfer_assets_to_parachain_chain(
             origin,
@@ -152,7 +159,6 @@ decl_module! {
             amount: BalanceOf<T>,
             asset_id: Option<AssetIdOf<T>>,
         ) {
-            //TODO we don't make sure that the parachain has some tokens on the other parachain.
             let who = ensure_signed(origin.clone())?;
 
             let para_id: ParaId = para_id.into();
@@ -165,6 +171,7 @@ decl_module! {
             } else {
                 T::Currency::transfer(&who, &para_account, amount, ExistenceRequirement::KeepAlive)?;
             }
+
             T::XCMPMessageSender::send_xcmp_message(
                 para_id.into(),
                 &XCMPMessage::TransferToken(dest.clone(), amount, dest_asset_id),
@@ -185,6 +192,7 @@ fn convert_hack<O: Decode>(input: &impl Encode) -> O {
 }
 
 impl<T: Trait> DownwardMessageHandler for Module<T> {
+    /// Handles messages from the Relay Chain
     fn handle_downward_message(msg: &DownwardMessage) {
         match msg {
             DownwardMessage::TransferInto(dest, relay_amount, remark) => {
@@ -224,6 +232,7 @@ impl<T: Trait> DownwardMessageHandler for Module<T> {
 impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, AssetIdOf<T>>>
     for Module<T>
 {
+    /// Handles messages from other parachains
     fn handle_xcmp_message(
         src: ParaId,
         msg: &XCMPMessage<T::AccountId, BalanceOf<T>, AssetIdOf<T>>,
