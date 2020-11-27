@@ -41,7 +41,7 @@ fn transfer_token_to_relay_settles_on_parachain_with_event() {
     let transfer_amount = 1000;
     let from = [0u8; 32];
     let to = [1u8; 32];
-    let relay_account: [u8; 32] = RelayId::default().into_account();
+    let relay_account: [u8; 32] = RelayAccount::default().into_account();
     let asset_id = None;
     let expected_event = TestEvent::token_dealer(RawEvent::TransferredTokensToRelayChain(
         from.into(),
@@ -79,7 +79,7 @@ fn transfer_assets_to_relay_settles_on_parachain_with_event() {
     let transfer_amount = 1000;
     let from = [0u8; 32];
     let to = [1u8; 32];
-    let relay_account: [u8; 32] = RelayId::default().into_account();
+    let relay_account: [u8; 32] = RelayAccount::default().into_account();
     let asset_id = Some(0);
     let expected_event = TestEvent::token_dealer(RawEvent::TransferredTokensToRelayChain(
         from.into(),
@@ -113,7 +113,7 @@ fn downward_message_tokens_settles_accounts_on_parachain_with_event() {
     let transfer_amount = 9000;
     let dest = [0u8; 32];
     let remark = [0u8; 32];
-    let relay_account: [u8; 32] = RelayId::default().into_account();
+    let relay_account: [u8; 32] = RelayAccount::default().into_account();
     let downward_message = DownwardMessage::TransferInto(dest.into(), transfer_amount, remark);
     let expected_event = TestEvent::token_dealer(RawEvent::TransferredTokensFromRelayChain(
         dest.into(),
@@ -146,7 +146,7 @@ fn downward_message_assets_settles_accounts_on_parachain_with_event() {
     let dest = [0u8; 32];
     let mut remark = Some(0).encode();
     remark.resize(32, 0);
-    let relay_account: [u8; 32] = RelayId::default().into_account();
+    let relay_account: [u8; 32] = RelayAccount::default().into_account();
     let downward_message =
         DownwardMessage::TransferInto(dest.into(), transfer_amount, encoded_to_remark(remark));
     let expected_event = TestEvent::token_dealer(RawEvent::TransferredTokensFromRelayChain(
@@ -177,8 +177,7 @@ fn transfer_tokens_to_para_settles_accounts_on_parachain_with_event() {
     let from = [0u8; 32];
     let initial_amount = 10000;
     let transfer_amount = 9000;
-    let asset_id_remote = Some(5);
-    let asset_id_local = Some(0);
+    let asset_id_local = Some(1);
     let para_id: ParaId = 200.into();
     let dest = [0u8; 32];
 
@@ -187,27 +186,90 @@ fn transfer_tokens_to_para_settles_accounts_on_parachain_with_event() {
         asset_id_local,
         para_id,
         dest.into(),
-        asset_id_remote,
+        asset_id_local,
         transfer_amount,
     ));
     ExtBuilder::default().build().execute_with(|| {
+        assert_ok!(Assets::issue(Origin::signed(from.into()), initial_amount));
         assert_ok!(Assets::issue(Origin::signed(from.into()), initial_amount));
         assert_ok!(TokenDealer::transfer_assets_to_parachain_chain(
             Origin::signed(from.into()),
             para_id.into(),
             dest.into(),
-            asset_id_remote,
             transfer_amount,
             asset_id_local,
         ));
-        assert_eq!(Assets::balance(0, para_id.into_account()), transfer_amount);
         assert_eq!(
-            Assets::balance(0, from.into()),
+            Assets::balance(asset_id_local.unwrap(), para_id.into_account()),
+            transfer_amount
+        );
+        assert_eq!(
+            Assets::balance(asset_id_local.unwrap(), from.into()),
             initial_amount - transfer_amount
         );
         assert!(System::events()
             .iter()
             .any(|record| record.event == expected_event));
+    });
+}
+
+#[test]
+fn make_transfer_to_relay_settles_accounts() {
+    let from = [0u8; 32];
+    let from: AccountId = from.into();
+    let initial_amount = 10000;
+    let transfer_amount = 9000;
+    let asset_id_local = None;
+    let dest = [0u8; 32];
+    let relay_account: [u8; 32] = RelayAccount::default().into_account();
+    let relay_account: AccountId = relay_account.into();
+    ExtBuilder::default()
+        .free_balance(vec![(from.clone(), initial_amount)])
+        .build()
+        .execute_with(|| {
+            assert_ok!(TokenDealer::make_transfer_to_relay_chain(
+                &asset_id_local,
+                &from,
+                &dest.into(),
+                transfer_amount,
+            ));
+            assert_eq!(Balances::free_balance(relay_account), transfer_amount);
+            assert_eq!(
+                Balances::free_balance(from),
+                initial_amount - transfer_amount
+            );
+        });
+}
+
+#[test]
+fn make_transfer_to_para_settles_accounts() {
+    let from = [0u8; 32];
+    let initial_amount = 10000;
+    let transfer_amount = 9000;
+    let asset_id_local = Some(1);
+    let asset_id_dest = Some(3);
+    let para_id: ParaId = 200.into();
+    let dest = [0u8; 32];
+
+    ExtBuilder::default().build().execute_with(|| {
+        assert_ok!(Assets::issue(Origin::signed(from.into()), initial_amount));
+        assert_ok!(Assets::issue(Origin::signed(from.into()), initial_amount));
+        assert_ok!(TokenDealer::make_transfer_to_parachain(
+            &from.into(),
+            &asset_id_local,
+            para_id.into(),
+            &dest.into(),
+            &asset_id_dest,
+            transfer_amount,
+        ));
+        assert_eq!(
+            Assets::balance(asset_id_local.unwrap(), para_id.into_account()),
+            transfer_amount
+        );
+        assert_eq!(
+            Assets::balance(asset_id_local.unwrap(), from.into()),
+            initial_amount - transfer_amount
+        );
     });
 }
 
