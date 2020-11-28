@@ -1988,33 +1988,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "generic-assets-token-dealer"
-version = "0.1.0"
-dependencies = [
- "cumulus-message-broker",
- "cumulus-primitives",
- "frame-support",
- "frame-system",
- "kusama-runtime",
- "pallet-assets",
- "pallet-balances",
- "parachain-info",
- "parity-scale-codec",
- "polkadot-core-primitives",
- "polkadot-parachain",
- "polkadot-runtime",
- "rococo-runtime",
- "serde",
- "sp-api",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder-runner 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "westend-runtime",
-]
-
-[[package]]
 name = "get_if_addrs"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3708,15 +3681,13 @@ dependencies = [
 [[package]]
 name = "pallet-assets"
 version = "2.0.0-rc5"
+source = "git+https://github.com/subdarkdex/pallet-assets#54c8a0be032d05f1fb209cc0df770aa13ba0e631"
 dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
  "serde",
- "sp-core",
- "sp-io",
  "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -3847,6 +3818,31 @@ dependencies = [
  "sp-inherents",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-generic-token-dealer"
+version = "0.1.0"
+source = "git+https://github.com/subdarkdex/pallet-generic-token-dealer#05f7cbac6e8ae7d74602ac9b29a4c7f50dc15982"
+dependencies = [
+ "cumulus-primitives",
+ "frame-support",
+ "frame-system",
+ "kusama-runtime",
+ "pallet-assets",
+ "parity-scale-codec",
+ "polkadot-core-primitives",
+ "polkadot-parachain",
+ "polkadot-runtime",
+ "rococo-runtime",
+ "serde",
+ "sp-api",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder-runner 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "westend-runtime",
 ]
 
 [[package]]
@@ -4310,9 +4306,9 @@ dependencies = [
  "frame-executive",
  "frame-support",
  "frame-system",
- "generic-assets-token-dealer",
  "pallet-assets",
  "pallet-balances",
+ "pallet-generic-token-dealer",
  "pallet-randomness-collective-flip",
  "pallet-sudo",
  "pallet-timestamp",
@@ -8181,13 +8177,13 @@ dependencies = [
 [[package]]
 name = "substrate-wasm-builder-runner"
 version = "1.0.6"
-source = "git+https://github.com/paritytech/substrate?branch=rococo-branch#83544d41abcc0e3d3cbbd6aa510e04dc50863e5c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2a965994514ab35d3893e9260245f2947fd1981cdd4fffd2c6e6d1a9ce02e6a"
 
 [[package]]
 name = "substrate-wasm-builder-runner"
 version = "1.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2a965994514ab35d3893e9260245f2947fd1981cdd4fffd2c6e6d1a9ce02e6a"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-branch#83544d41abcc0e3d3cbbd6aa510e04dc50863e5c"
 
 [[package]]
 name = "substrate-wasmtime"

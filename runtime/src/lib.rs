@@ -27,15 +27,12 @@ pub use frame_support::{
     weights::{constants::WEIGHT_PER_SECOND, IdentityFee, Weight},
     StorageValue,
 };
-pub use pallet_assets::Call as AssetsCall;
-pub use pallet_balances::Call as BalancesCall;
-pub use pallet_timestamp::Call as TimestampCall;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 
 /// Import the message pallet.
-pub use generic_assets_token_dealer;
+pub use pallet_generic_token_dealer as token_dealer;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -226,18 +223,18 @@ impl cumulus_parachain_upgrade::Trait for Runtime {
 impl cumulus_message_broker::Trait for Runtime {
     type Event = Event;
     type DownwardMessageHandlers = TokenDealer;
-    type UpwardMessage = generic_assets_token_dealer::upward_messages::RococoUpwardMessage;
+    type UpwardMessage = token_dealer::upward_messages::RococoUpwardMessage;
     type ParachainId = ParachainInfo;
-    type XCMPMessage = generic_assets_token_dealer::XCMPMessage<AccountId, Balance, AssetId>;
+    type XCMPMessage = token_dealer::XCMPMessage<AccountId, Balance, AssetId>;
     type XCMPMessageHandlers = TokenDealer;
 }
 
 impl parachain_info::Trait for Runtime {}
 
-impl generic_assets_token_dealer::Trait for Runtime {
+impl token_dealer::Trait for Runtime {
     type Event = Event;
     type UpwardMessageSender = MessageBroker;
-    type UpwardMessage = generic_assets_token_dealer::upward_messages::RococoUpwardMessage;
+    type UpwardMessage = token_dealer::upward_messages::RococoUpwardMessage;
     type XCMPMessageSender = MessageBroker;
     type Currency = Balances;
 }
@@ -257,7 +254,7 @@ construct_runtime! {
         MessageBroker: cumulus_message_broker::{Module, Call, Inherent, Event<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
         ParachainInfo: parachain_info::{Module, Storage, Config},
-        TokenDealer: generic_assets_token_dealer::{Module, Call, Event<T>},
+        TokenDealer: token_dealer::{Module, Call, Event<T>},
         Assets: pallet_assets::{Module, Call, Storage, Event<T>},
     }
 }
